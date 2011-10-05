@@ -33,12 +33,27 @@ function init() {
     var osm = new OpenLayers.Layer.OSM("OpenStreetMap", null, {
 		transitionEffect: 'resize'
 	      });            
-    var overlay = new OpenLayers.Layer.WMS("Overlay",
+    var hot = new OpenLayers.Layer.WMS("0-15",
 	"http://jimlandis.com/geoserver/northeast/wms/",
-	{layers: 'track_v1', transparent: true, transitionEffect: 'resize'}
+	{layers: 'track_v2_0-15', transparent: true, transitionEffect: 'resize'}
+    );
+
+    var slow = new OpenLayers.Layer.WMS("15-30",
+        "http://jimlandis.com/geoserver/northeast/wms/",
+        {layers: 'track_v2_15-30', transparent: true, transitionEffect: 'resize'}
+    );
+
+    var meh = new OpenLayers.Layer.WMS("30-50",
+        "http://jimlandis.com/geoserver/northeast/wms/",
+        {layers: 'track_v2_30-50', transparent: true, transitionEffect: 'resize'}
     );
   
-    map.addLayers([osm, overlay]);
+    var movin = new OpenLayers.Layer.WMS("50+",
+        "http://jimlandis.com/geoserver/northeast/wms/",
+        {layers: 'track_v2_50p', transparent: true, transitionEffect: 'resize'}
+    );
+
+    map.addLayers([osm, movin, meh, slow, hot]);
 
     map.addControl(
 		   new OpenLayers.Control.LayerSwitcher(),
