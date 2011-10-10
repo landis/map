@@ -18,13 +18,13 @@ function init() {
         div: "map",
 //	theme: null,
         projection: new OpenLayers.Projection("EPSG:900913"),
-//        units: "m",
-//        maxResolution: 156543.0339,
-//	controls: [
-//		new OpenLayers.Control.Attribution(),
-//		new OpenLayers.Control.TouchNavigation({
-//			dragPanOptions: {enableKinetic: true}
-//	}),
+	controls: [
+		new OpenLayers.Control.LayerSwitcher(),
+		new OpenLayers.Control.Attribution(),
+		new OpenLayers.Control.TouchNavigation({
+			dragPanOptions: {enableKinetic: true}}),
+		new OpenLayers.Control.ZoomPanel()
+	],
         maxExtent: new OpenLayers.Bounds(
             -20037508, -20037508, 20037508, 20037508.34
         )
@@ -33,6 +33,7 @@ function init() {
     var osm = new OpenLayers.Layer.OSM("OpenStreetMap", null, {
 		transitionEffect: 'resize'
 	      });            
+
     var hot = new OpenLayers.Layer.WMS("0-15",
 	"http://jimlandis.com/geoserver/northeast/wms/",
 	{layers: 'track_v2_0-15', transparent: true, transitionEffect: 'resize'}
@@ -55,12 +56,13 @@ function init() {
 
     map.addLayers([osm, movin, meh, slow, hot]);
 
-    map.addControl(
-		   new OpenLayers.Control.LayerSwitcher(),
-		   new OpenLayers.Control.Attribution(),
-                   new OpenLayers.Control.TouchNavigation({
-                       dragPanOptions: {enableKinetic: true}})
-    );
+//    map.addControl(
+//		   new OpenLayers.Control.LayerSwitcher(),
+//		   new OpenLayers.Control.Attribution(),
+//                 new OpenLayers.Control.TouchNavigation({
+//                       dragPanOptions: {enableKinetic: true}}),
+//		   new OpenLayers.Control.ZoomPanel()
+//    );
 
     map.setCenter(
         new OpenLayers.LonLat(-75.2,40.0).transform(
