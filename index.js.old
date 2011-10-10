@@ -1,0 +1,179 @@
+var map;
+
+// Get rid of address bar on iphone/ipod
+var fixSize = function() {
+    window.scrollTo(0, 0);
+    document.body.style.height = '100%';
+    if (!(/(iphone|ipod)/.test(navigator.userAgent.toLowerCase()))) {
+        if (document.body.parentNode) {
+            document.body.parentNode.style.height = '100%';
+        }
+    }
+};
+setTimeout(fixSize, 700);
+setTimeout(fixSize, 1500);
+
+function init() {
+    map = new OpenLayers.Map({
+        div: "map",
+        projection: new OpenLayers.Projection("EPSG:900913"),
+	controls: [
+		new OpenLayers.Control.Attribution(),
+		new OpenLayers.Control.TouchNavigation({
+			dragPanOptions: {enableKinetic: true}
+		}),
+		new OpenLayers.Control.ZoomPanel(),
+		new OpenLayers.Control.Click()
+		],
+        maxExtent: new OpenLayers.Bounds(
+            -20037508, -20037508, 20037508, 20037508.34
+        )
+    });
+    
+    var osm = new OpenLayers.Layer.OSM("OpenStreetMap", null, {
+		transitionEffect: 'resize'
+	      });            
+
+//    var osmloc = new OpenLayers.Layer.OSM.LocalPAMapnik("OSM Local Cache", {
+//		'isBaseLayer': true});
+
+    var traf = new OpenLayers.Layer.WMS("Traffic Density",
+	"http://jimlandis.com/geoserver/northeast/wms/",
+	{layers: '10', transparent: true, transitionEffect: 'resize'}
+    );
+
+    OpenLayers.Control.Click = OpenLayers.Class(OpenLayers.Control, {
+	defaultHandlerOptions: {
+		'single': true,
+		'double': false,
+		'pixelTolerance': 0,
+		'stopSingle': false,
+		'stopDouble': false
+	},
+	
+	initialize: function(options) {
+		this.handlerOptions = OpenLayers.Util.extend(
+			{}, this.defaultHandlerOptions
+		);
+		OpenLayers.Control.prototype.initialize.apply(
+			this, arguments
+		);
+		this.handler = new OpenLayers.Handler.Click(
+			this, {
+				'click': this.trigger
+			}, this.handlerOptions
+		);
+	},
+
+	trigger: function(e) {
+		// hide the div until new data loads
+			infoWin_close();
+		// get coordinate click
+			var lonlat = map.getLonLatFromViewPortPx(e.xy);
+		// transform to 4326
+			lonlat.transform(new OpenLayers.Projection("EPSG:900913"), new OpenLayers.Projection("EPSG:4326"));
+		// get the current extent and map size in pixels
+			var size = map.getCurrentSize();
+			var imgsize = size.w.toString() + "," + size.h.toString() + ",72";
+		//alert("width: " + size.w.toString() + " height: " + size.h.toString());
+			var bounds = map.calculateBounds();
+			bounds.transform(new OpenLayers.Projection("EPSG:900913"), new OpenLayers.Projection("EPSG:4326"));
+		//alert("west: " + bounds.left.toString() + " south: " + bounds.bottom.toString() + " east: " + bounds.right.toString() + " north: " + bounds.top.toString());
+			var mapext = bounds.left.toString() + "," + bounds.bottom.toString() + "," + bounds.right.toString() + "," + bounds.top.toString()
+		//alert("You clicked near " + lonlat.lat + " N, " + lonlat.lon + " E");
+			var identifyUrl = "http://" + arcgisServer + "/ArcGIS/rest/services/" + service + "/MapServer/identify?geometryType=esriGeometryPoint%26geometry={x: " + lonlat.lon + ", y:" + lonlat.lat + "}%26layers=all:" + layerId + "%26tolerance=3%26mapExtent=" + mapext + "%26imageDisplay=" + imgsize + "%26returnGeometry=false%26f=json";
+
+		//window.open(identifyUrl,"_blank");
+			var proxyUrl = "/RequestProxy/Request.ashx?request=" + identifyUrl;
+		//prompt("proxyUrl",proxyUrl);
+			var request = OpenLayers.Request.GET({url: proxyUrl,callback: identifyHandler});
+		}
+         });
+
+    function identifyHandler(request) {
+		var identifyStr = "";
+    	// make sure there are label fields
+	if (labelFieldsStr == "raster") {
+		alert("This layer has no information");
+		return;
+	}
+	// if the response was XML, try the parsed doc
+	//alert(request.responseXML);
+	//alert("status code: " + request.status);
+	// otherwise, you've got the response text
+		var resp = request.responseText;
+	//alert(resp);
+		var respObj = eval("(" + resp + ")");
+		var resultArray = respObj["results"];
+		var firstObj = resultArray[0];
+	// make sure some results were found
+	if (!firstObj) {
+		identifyStr = "No feature found";
+	}
+	else {
+		var attsObj = firstObj["attributes"];
+		// create the string to present
+			for ( var i in labelFieldsObj) {
+		//identifyStr += labelFieldsObj[i] + ": " + attsObj[i].toString() + "\n";
+			identifyStr += labelFieldsObj[i] + ": " + attsObj[i].toString() + "<br/>";
+			}
+	}
+	//alert(identifyStr);
+		var div = document.getElementById("divInfo");
+	div.innerHTML = identifyStr + "<br/> <button onclick='infoWin_close();'>Close</button>";
+       	div.style.display = "block";
+
+		// and don't forget you've got status codes
+		//
+		// and of course you can get headers
+		//alert(request.getAllResponseHeaders());
+		// etc.
+	}
+
+
+	// define ArcGIS layers
+	previewLayer = new OpenLayers.Layer.ArcGIS93Rest("Pennsylvania traffic counts",
+		"http://data1.commons.psu.edu/ArcGIS/rest/services/pasda/PennDOT/MapServer/export", 
+                {layers: "show:5", transparent: true},{isBaseLayer: false, visibility: true});
+
+    var hot = new OpenLayers.Layer.WMS("0-15",
+	"http://jimlandis.com/geoserver/northeast/wms/",
+	{layers: 'track_v2_0-15', transparent: true, transitionEffect: 'resize'}
+    );
+
+    var slow = new OpenLayers.Layer.WMS("15-30",
+        "http://jimlandis.com/geoserver/northeast/wms/",
+        {layers: 'track_v2_15-30', transparent: true, transitionEffect: 'resize'}
+    );
+
+    var meh = new OpenLayers.Layer.WMS("30-50",
+        "http://jimlandis.com/geoserver/northeast/wms/",
+        {layers: 'track_v2_30-50', transparent: true, transitionEffect: 'resize'}
+    );
+  
+    var movin = new OpenLayers.Layer.WMS("50+",
+        "http://jimlandis.com/geoserver/northeast/wms/",
+        {layers: 'track_v2_50p', transparent: true, transitionEffect: 'resize'}
+    );
+
+    map.addLayers([traf, movin, meh, slow, hot, osm, previewLayer]);
+
+    map.addControl(
+		   new OpenLayers.Control.LayerSwitcher(),
+		   new OpenLayers.Control.Attribution(),
+                   new OpenLayers.Control.TouchNavigation({
+                       dragPanOptions: {enableKinetic: true}})
+    );
+
+    click.activate();
+	// zoom to extent
+	map.zoomToMaxExtent();
+
+    map.setCenter(
+        new OpenLayers.LonLat(-75.2,40.0).transform(
+            new OpenLayers.Projection("EPSG:4326"),
+            map.getProjectionObject()
+        ), 
+        11
+    );
+}
